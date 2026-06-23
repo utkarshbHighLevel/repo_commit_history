@@ -46,6 +46,9 @@
  .bavg .bunit{font-size:13px;font-weight:700;margin-left:2px}
  .btot{font-size:20px;font-weight:700;line-height:1;color:var(--txt)}
  .blab{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;margin-top:5px}
+ .bproj{margin-top:9px;padding-top:8px;border-top:1px dashed var(--line);font-size:11px;color:var(--mut);line-height:1.5}
+ .bproj .bp-c{color:var(--orange);font-weight:700}
+ .bproj .bp-t{color:var(--accent);font-weight:700}
  .cards{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 18px}
  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px;min-width:120px;cursor:pointer}
  .card:hover{border-color:var(--accent)}
@@ -101,19 +104,40 @@ const cats=["merged-default","open","closed-unmerged","merged-other"];
 const REPOS=["ghl-revex-frontend","ghl-crm-frontend","spm-ts"];
 let win=90, repo="", dataset="all", activeCat=null, sortK="da", sortDir=1, q="", mxMode="total";
 const fmt=n=>n.toLocaleString();
+// Per-app copy-guard scan cost & time (avg/app), pulled from copy-guard-report.html's
+// "Cost & time per app" section (all repos). Projection = PRs avg/mo × per-app figure,
+// i.e. the cost/time if every PR in scope triggered an LLM copy-guard scan.
+const PERAPP={avgCostUsd:0.438655553125, avgTimeMs:168784.98529411765};
+const fmtUSD=n=>"$"+(n>=100?Math.round(n).toLocaleString():n.toFixed(2));
+const fmtDurMo=ms=>{const s=ms/1000;
+  if(s<60)return Math.round(s)+"s";
+  if(s<3600)return(s/60).toFixed(0)+"m";
+  const h=s/3600; if(h<24)return h.toFixed(1)+"h";
+  return(h/24).toFixed(1)+"d";};
 function inScope(r){return r.da!=null&&r.da<=win&&(!repo||r.repo===repo)&&(dataset==="all"||r.loc);}
 // banner
 function banner(){
   const mk=(ds,title,sel)=>{
     const k=(repo||"ALL")+"|"; const T=TOTALS[ds][k+"t"+win], C=TOTALS[ds][k+"tc"+win], m=win/30;
     const aT=Math.round(T/m), aC=Math.round(C/m);
+    const eCost=aT*PERAPP.avgCostUsd, eTime=aT*PERAPP.avgTimeMs;
+    const eCostC=aC*PERAPP.avgCostUsd, eTimeC=aC*PERAPP.avgTimeMs;
+    const projTitle=`avg/mo × per-app scan cost ($${PERAPP.avgCostUsd.toFixed(2)}) and time (${fmtDurMo(PERAPP.avgTimeMs)}) from copy-guard report`;
     return `<div class="bk ${ds==='loc'?'loc':''} ${sel?'sel':''}" data-ds="${ds}">
       <div class="btitle">${title}<span class="chk">● showing</span></div>
       <div class="bstats">
-        <div class="bstat"><div class="bavg">${fmt(aT)}<span class="bunit">/mo</span></div><div class="blab">PRs · avg/mo</div></div>
+        <div class="bstat"><div class="bavg">${fmt(aT)}<span class="bunit">/mo</span></div><div class="blab">PRs · avg/mo</div>
+          <div class="bproj" title="${projTitle}">
+            <div><span class="bp-c">≈ ${fmtUSD(eCost)}</span> scan cost/mo</div>
+            <div><span class="bp-t">≈ ${fmtDurMo(eTime)}</span> scan time/mo</div>
+          </div></div>
         <div class="bstat"><div class="btot">${fmt(T)}</div><div class="blab">PRs · last ${win}d</div></div>
         <div class="bsep"></div>
-        <div class="bstat"><div class="bavg cmc">${fmt(aC)}<span class="bunit">/mo</span></div><div class="blab">commits · avg/mo</div></div>
+        <div class="bstat"><div class="bavg cmc">${fmt(aC)}<span class="bunit">/mo</span></div><div class="blab">commits · avg/mo</div>
+          <div class="bproj" title="${projTitle}">
+            <div><span class="bp-c">≈ ${fmtUSD(eCostC)}</span> scan cost/mo</div>
+            <div><span class="bp-t">≈ ${fmtDurMo(eTimeC)}</span> scan time/mo</div>
+          </div></div>
         <div class="bstat"><div class="btot">${fmt(C)}</div><div class="blab">commits · last ${win}d</div></div>
       </div></div>`;
   };
